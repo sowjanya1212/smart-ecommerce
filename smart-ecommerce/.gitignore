@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/*.sqlite3
+media/*
+!media/.gitkeep
+admin_panel/staticfiles/
+.pytest_cache/

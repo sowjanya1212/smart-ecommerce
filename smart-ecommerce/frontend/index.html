@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Shop</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#" data-view="shop">🛍️ Smart Shop</a>
+  <input id="search" type="search" placeholder="Search products…" aria-label="Search">
+  <nav>
+    <button class="icon" data-view="cart" title="Cart">🛒 <span id="cart-count" class="badge">0</span></button>
+    <button class="icon" data-view="orders" title="Orders">📦</button>
+    <button class="icon" data-view="notifications" title="Notifications">🔔 <span id="notif-count" class="badge">0</span></button>
+    <button id="auth-btn" class="primary">Log in</button>
+  </nav>
+</header>
+
+<main>
+  <section id="view-shop">
+    <div class="filters">
+      <select id="f-category"><option value="">All categories</option></select>
+      <input id="f-min" type="number" min="0" placeholder="Min $">
+      <input id="f-max" type="number" min="0" placeholder="Max $">
+      <select id="f-sort">
+        <option value="newest">Newest</option>
+        <option value="popularity">Most popular</option>
+        <option value="price_asc">Price: low → high</option>
+        <option value="price_desc">Price: high → low</option>
+      </select>
+    </div>
+    <div id="products" class="grid"></div>
+    <div class="pager"><button id="prev">← Prev</button><span id="page-info"></span><button id="next">Next →</button></div>
+  </section>
+  <section id="view-cart" hidden></section>
+  <section id="view-orders" hidden></section>
+  <section id="view-notifications" hidden></section>
+</main>
+
+<dialog id="auth-dialog">
+  <form method="dialog" id="auth-form">
+    <h3 id="auth-title">Log in</h3>
+    <input id="a-name" placeholder="Full name" hidden>
+    <input id="a-email" type="email" placeholder="Email" required autocomplete="email">
+    <input id="a-pass" type="password" placeholder="Password (min 8 chars)" required minlength="8" autocomplete="current-password">
+    <div class="row"><button class="primary" id="a-submit" value="submit">Continue</button>
+      <button value="cancel" formnovalidate>Cancel</button></div>
+    <p class="muted"><a href="#" id="a-toggle">Need an account? Sign up</a></p>
+    <div id="social" hidden>
+      <hr><button type="button" class="social" data-conn="google-oauth2">Continue with Google</button>
+      <button type="button" class="social" data-conn="facebook">Continue with Facebook</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="pay-dialog">
+  <h3 id="pay-title">Payment</h3>
+  <div id="pay-body"></div>
+</dialog>
+
+<div id="toasts" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+# docker compose up --build
+#   Storefront + API : http://localhost:8000   (Swagger: /docs)
+#   Django admin     : http://localhost:8001/admin/   Dashboard: /dashboard/
+# Then seed demo data:  docker compose exec admin python manage.py seed_demo
+x-shared-env: &shared-env
+  DATABASE_URL: postgresql://shop:shop@db:5432/shop
+  INTERNAL_SECRET: ${INTERNAL_SECRET:-change-me-internal}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  EMAIL_FROM: ${EMAIL_FROM:-Smart Shop <no-reply@smartshop.local>}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: shop, POSTGRES_PASSWORD: shop, POSTGRES_DB: shop }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shop -d shop"]
+      interval: 5s
+      retries: 10
+
+  admin:
+    build: { context: ., dockerfile: admin_panel/Dockerfile }
+    environment:
+      <<: *shared-env
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-django-secret}
+      DJANGO_DEBUG: "0"
+      DJANGO_ALLOWED_HOSTS: "*"
+      DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:8001
+      FASTAPI_INTERNAL_URL: http://api:8000
+      PUBLIC_MEDIA_URL: http://localhost:8000/media/
+    volumes: [media:/app/media]
+    ports: ["8001:8001"]
+    depends_on: { db: { condition: service_healthy } }
+
+  api:
+    build: { context: ., dockerfile: api/Dockerfile }
+    environment:
+      <<: *shared-env
+      JWT_SECRET: ${JWT_SECRET:-change-me-jwt-secret-at-least-32-chars}
+      CORS_ORIGINS: http://localhost:8000
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID:-}
+    volumes: [media:/app/media]
+    ports: ["8000:8000"]
+    depends_on: [admin]
+
+volumes:
+  pgdata:
+  media:

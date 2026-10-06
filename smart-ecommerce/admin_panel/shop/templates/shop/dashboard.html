@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Shop – Analytics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#f3f4f6; --card:#fff; --ink:#111827; --muted:#6b7280; --brand:#4f46e5; --bad:#b91c1c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#111827; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  header a { color:#c7d2fe; text-decoration:none; margin-left:14px; }
+  main { max-width:1200px; margin:0 auto; padding:20px; }
+  .grid { display:grid; gap:16px; }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom:16px; }
+  .two { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); margin-bottom:16px; }
+  .card { background:var(--card); border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .kpi small { color:var(--muted); display:block; }
+  .kpi b { font-size:1.7rem; }
+  h2 { font-size:1rem; margin:0 0 12px; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #e5e7eb; }
+  .low { color:var(--bad); font-weight:700; }
+  .btn { display:inline-block; padding:6px 10px; border-radius:6px; background:var(--brand); color:#fff; text-decoration:none; font-size:.8rem; margin:2px 2px 2px 0; }
+  .btn.alt { background:#374151; }
+  canvas { max-height:300px; }
+</style>
+</head>
+<body>
+<header>
+  <strong>📊 Smart Shop Analytics</strong>
+  <nav><a href="/admin/">Admin</a><a href="/admin/shop/order/">Orders</a><a href="/admin/shop/product/">Products</a><a href="/admin/logout/">Log out</a></nav>
+</header>
+<main>
+  <section class="grid kpis">
+    <div class="card kpi"><small>Total sales (paid)</small><b>${{ total_sales|floatformat:2 }}</b></div>
+    <div class="card kpi"><small>Orders</small><b>{{ orders_count }}</b></div>
+    <div class="card kpi"><small>Paid orders</small><b>{{ paid_orders }}</b></div>
+    <div class="card kpi"><small>Customers</small><b>{{ customers }}</b></div>
+    <div class="card kpi"><small>Low-stock items (≤ {{ low_stock_threshold }})</small><b class="{% if low_stock %}low{% endif %}">{{ low_stock|length }}</b></div>
+  </section>
+
+  <section class="grid two">
+    <div class="card"><h2>Revenue trend – last 30 days</h2><canvas id="trend"></canvas></div>
+    <div class="card"><h2>Top-selling products (units)</h2><canvas id="top"></canvas></div>
+  </section>
+
+  <section class="grid two">
+    <div class="card"><h2>Orders by status</h2><canvas id="status"></canvas></div>
+    <div class="card">
+      <h2>⚠️ Low stock alerts</h2>
+      {% if low_stock %}
+      <table><tr><th>Product</th><th>Stock</th><th></th></tr>
+      {% for p in low_stock %}<tr><td>{{ p.name }}</td><td class="low">{{ p.stock }}</td><td><a href="/admin/shop/product/{{ p.id }}/change/">Restock</a></td></tr>{% endfor %}
+      </table>
+      {% else %}<p>All products are sufficiently stocked 🎉</p>{% endif %}
+    </div>
+  </section>
+
+  <section class="grid two">
+    <div class="card">
+      <h2>Top products (table)</h2>
+      <table><tr><th>Product</th><th>Units</th><th>Revenue</th></tr>
+      {% for t in top_products %}<tr><td>{{ t.product_name }}</td><td>{{ t.units }}</td><td>${{ t.revenue|floatformat:2 }}</td></tr>
+      {% empty %}<tr><td colspan="3">No paid orders yet.</td></tr>{% endfor %}
+      </table>
+    </div>
+    <div class="card">
+      <h2>Export reports</h2>
+      {% for key, title in report_links.items %}
+        <div style="margin:8px 0"><b>{{ title }}</b><br>
+          <a class="btn" href="{% url 'export_report' key 'csv' %}">CSV</a>
+          <a class="btn alt" href="{% url 'export_report' key 'pdf' %}">PDF</a></div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+
+{{ chart_data|json_script:"chart-data" }}
+<script>
+  const d = JSON.parse(document.getElementById('chart-data').textContent);
+  new Chart(document.getElementById('trend'), {
+    type: 'line',
+    data: { labels: d.labels, datasets: [
+      { label: 'Revenue ($)', data: d.revenue, borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,.15)', fill: true, tension: .3, yAxisID: 'y' },
+      { label: 'Orders', data: d.orders, borderColor: '#10b981', tension: .3, yAxisID: 'y1' } ] },
+    options: { responsive: true, interaction: { mode: 'index', intersect: false },
+      scales: { y: { beginAtZero: true }, y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } } } }
+  });
+  new Chart(document.getElementById('top'), {
+    type: 'bar',
+    data: { labels: d.top_labels, datasets: [{ label: 'Units sold', data: d.top_units, backgroundColor: '#6366f1' }] },
+    options: { indexAxis: 'y', responsive: true }
+  });
+  new Chart(document.getElementById('status'), {
+    type: 'doughnut',
+    data: { labels: d.status_labels, datasets: [{ data: d.status_values,
+      backgroundColor: ['#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ef4444'] }] }
+  });
+</script>
+</body>
+</html>
